@@ -1,0 +1,440 @@
+{
+  "entities": {
+    "AdminRegistry": {
+      "title": "AdminRegistry",
+      "description": "Trusted registry mapping UIDs to Consortium Admin privileges.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "grantedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "grantedBy", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Non-PII operational profile for a federated consortium user or clinician.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "hospitalNodeId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "suspended"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "hospitalNodeId", "role", "status", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII record for authenticated user contact email.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "HospitalNode": {
+      "title": "HospitalNode",
+      "description": "Participating clinical enclave node storing only aggregate training telemetry (zero patient records).",
+      "type": "object",
+      "properties": {
+        "nodeId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "department": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "region": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "pending", "suspended"]
+        },
+        "localRecordCount": {
+          "type": "number"
+        },
+        "localAccuracy": {
+          "type": "number"
+        },
+        "privacyBudgetUsed": {
+          "type": "number"
+        },
+        "privacyBudgetCap": {
+          "type": "number"
+        },
+        "nonIidSkew": {
+          "type": "number"
+        },
+        "lastSyncRound": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "nodeId",
+        "name",
+        "department",
+        "region",
+        "ownerUid",
+        "status",
+        "localRecordCount",
+        "localAccuracy",
+        "privacyBudgetUsed",
+        "privacyBudgetCap",
+        "nonIidSkew",
+        "lastSyncRound",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TrainingRound": {
+      "title": "TrainingRound",
+      "description": "Global federated aggregation round state and evaluation metrics.",
+      "type": "object",
+      "properties": {
+        "roundId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roundNumber": {
+          "type": "number"
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["FedAvg", "FedProx"]
+        },
+        "globalAccuracy": {
+          "type": "number"
+        },
+        "globalLoss": {
+          "type": "number"
+        },
+        "aucRoc": {
+          "type": "number"
+        },
+        "f1Score": {
+          "type": "number"
+        },
+        "epsilonSpent": {
+          "type": "number"
+        },
+        "noiseMultiplier": {
+          "type": "number"
+        },
+        "participatingNodesCount": {
+          "type": "number"
+        },
+        "totalSamplesAggregated": {
+          "type": "number"
+        },
+        "aggregatorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "aggregated"]
+        },
+        "modelHash": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128,
+          "pattern": "^[a-fA-F0-9]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roundId",
+        "roundNumber",
+        "strategy",
+        "globalAccuracy",
+        "globalLoss",
+        "aucRoc",
+        "f1Score",
+        "epsilonSpent",
+        "noiseMultiplier",
+        "participatingNodesCount",
+        "totalSamplesAggregated",
+        "aggregatorUid",
+        "status",
+        "modelHash",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GradientUpdate": {
+      "title": "GradientUpdate",
+      "description": "Differentially private encrypted gradient weight delta submitted by a hospital node (zero PHI).",
+      "type": "object",
+      "properties": {
+        "updateId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roundNumber": {
+          "type": "number"
+        },
+        "nodeId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "submittedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "sampleCount": {
+          "type": "number"
+        },
+        "localEpochs": {
+          "type": "number"
+        },
+        "localAccuracy": {
+          "type": "number"
+        },
+        "localLoss": {
+          "type": "number"
+        },
+        "l2Norm": {
+          "type": "number"
+        },
+        "epsilonDelta": {
+          "type": "number"
+        },
+        "gradientDigest": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128,
+          "pattern": "^[a-fA-F0-9]+$"
+        },
+        "weightDeltas": {
+          "type": "array"
+        },
+        "phiScanPassed": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "aggregated"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "updateId",
+        "roundNumber",
+        "nodeId",
+        "submittedByUid",
+        "sampleCount",
+        "localEpochs",
+        "localAccuracy",
+        "localLoss",
+        "l2Norm",
+        "epsilonDelta",
+        "gradientDigest",
+        "weightDeltas",
+        "phiScanPassed",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable privacy and orchestration audit record.",
+      "type": "object",
+      "properties": {
+        "logId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "actorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "actorRole": {
+          "type": "string",
+          "enum": ["user", "admin"]
+        },
+        "actionType": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64
+        },
+        "targetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 280
+        },
+        "integrityHash": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128,
+          "pattern": "^[a-fA-F0-9]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "logId",
+        "actorUid",
+        "actorRole",
+        "actionType",
+        "targetId",
+        "summary",
+        "integrityHash",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminRegistry" },
+      "description": "Trusted Consortium Admin UID registry."
+    },
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User operational profiles without PII."
+    },
+    "/users/{uid}/private/info": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "PII-isolated private contact record for each user."
+    },
+    "/hospital_nodes/{nodeId}": {
+      "schema": { "$ref": "#/entities/HospitalNode" },
+      "description": "Participating healthcare institutions (aggregate metrics only, zero PHI)."
+    },
+    "/training_rounds/{roundId}": {
+      "schema": { "$ref": "#/entities/TrainingRound" },
+      "description": "Global federated model aggregation round ledger."
+    },
+    "/gradient_updates/{updateId}": {
+      "schema": { "$ref": "#/entities/GradientUpdate" },
+      "description": "Differentially private gradient updates submitted by active nodes."
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Append-only privacy and orchestration audit trail."
+    }
+  }
+}

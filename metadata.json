@@ -1,0 +1,6 @@
+{
+  "name": "FedMed Shield",
+  "description": "Privacy-preserving federated learning platform for decentralized healthcare data analysis with hospital node user and consortium admin authentication.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

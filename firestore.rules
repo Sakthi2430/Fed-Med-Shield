@@ -1,0 +1,362 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isVerified() && request.auth.uid == uid;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'sgkan24@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isHexString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen && val.matches('^[a-fA-F0-9]+$');
+    }
+
+    // --- Validation Blueprints ---
+    function isValidAdminRegistry(data, targetUid) {
+      return data.keys().hasAll(['uid', 'grantedBy', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'grantedBy', 'createdAt'])
+        && isValidId(data.uid)
+        && data.uid == targetUid
+        && isValidId(data.grantedBy)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidUserProfile(data, targetUid) {
+      return data.keys().hasAll(['uid', 'displayName', 'hospitalNodeId', 'role', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'hospitalNodeId', 'role', 'status', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == targetUid
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && isValidId(data.hospitalNodeId)
+        && data.role in ['user', 'admin']
+        && data.status in ['active', 'suspended']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data, targetUid) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == targetUid
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidHospitalNode(data, targetNodeId) {
+      return data.keys().hasAll([
+          'nodeId', 'name', 'department', 'region', 'ownerUid', 'status',
+          'localRecordCount', 'localAccuracy', 'privacyBudgetUsed', 'privacyBudgetCap',
+          'nonIidSkew', 'lastSyncRound', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'nodeId', 'name', 'department', 'region', 'ownerUid', 'status',
+          'localRecordCount', 'localAccuracy', 'privacyBudgetUsed', 'privacyBudgetCap',
+          'nonIidSkew', 'lastSyncRound', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.nodeId)
+        && data.nodeId == targetNodeId
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 120
+        && data.department is string && data.department.size() >= 2 && data.department.size() <= 80
+        && data.region is string && data.region.size() >= 2 && data.region.size() <= 64
+        && isValidId(data.ownerUid)
+        && data.status in ['active', 'pending', 'suspended']
+        && data.localRecordCount is number && data.localRecordCount >= 0 && data.localRecordCount <= 10000000
+        && data.localAccuracy is number && data.localAccuracy >= 0 && data.localAccuracy <= 100
+        && data.privacyBudgetUsed is number && data.privacyBudgetUsed >= 0 && data.privacyBudgetUsed <= 100
+        && data.privacyBudgetCap is number && data.privacyBudgetCap > 0 && data.privacyBudgetCap <= 100
+        && data.nonIidSkew is number && data.nonIidSkew >= 0 && data.nonIidSkew <= 1
+        && data.lastSyncRound is number && data.lastSyncRound >= 0 && data.lastSyncRound <= 100000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTrainingRound(data, targetRoundId) {
+      return data.keys().hasAll([
+          'roundId', 'roundNumber', 'strategy', 'globalAccuracy', 'globalLoss',
+          'aucRoc', 'f1Score', 'epsilonSpent', 'noiseMultiplier',
+          'participatingNodesCount', 'totalSamplesAggregated', 'aggregatorUid',
+          'status', 'modelHash', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'roundId', 'roundNumber', 'strategy', 'globalAccuracy', 'globalLoss',
+          'aucRoc', 'f1Score', 'epsilonSpent', 'noiseMultiplier',
+          'participatingNodesCount', 'totalSamplesAggregated', 'aggregatorUid',
+          'status', 'modelHash', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.roundId)
+        && data.roundId == targetRoundId
+        && data.roundNumber is number && data.roundNumber >= 1 && data.roundNumber <= 100000
+        && data.strategy in ['FedAvg', 'FedProx']
+        && data.globalAccuracy is number && data.globalAccuracy >= 0 && data.globalAccuracy <= 100
+        && data.globalLoss is number && data.globalLoss >= 0 && data.globalLoss <= 100
+        && data.aucRoc is number && data.aucRoc >= 0 && data.aucRoc <= 1
+        && data.f1Score is number && data.f1Score >= 0 && data.f1Score <= 1
+        && data.epsilonSpent is number && data.epsilonSpent >= 0 && data.epsilonSpent <= 100
+        && data.noiseMultiplier is number && data.noiseMultiplier >= 0 && data.noiseMultiplier <= 20
+        && data.participatingNodesCount is number && data.participatingNodesCount >= 0 && data.participatingNodesCount <= 10000
+        && data.totalSamplesAggregated is number && data.totalSamplesAggregated >= 0 && data.totalSamplesAggregated <= 100000000
+        && isValidId(data.aggregatorUid)
+        && data.status in ['open', 'aggregated']
+        && isHexString(data.modelHash, 8, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidGradientUpdate(data, targetUpdateId) {
+      return data.keys().hasAll([
+          'updateId', 'roundNumber', 'nodeId', 'submittedByUid', 'sampleCount',
+          'localEpochs', 'localAccuracy', 'localLoss', 'l2Norm', 'epsilonDelta',
+          'gradientDigest', 'weightDeltas', 'phiScanPassed', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'updateId', 'roundNumber', 'nodeId', 'submittedByUid', 'sampleCount',
+          'localEpochs', 'localAccuracy', 'localLoss', 'l2Norm', 'epsilonDelta',
+          'gradientDigest', 'weightDeltas', 'phiScanPassed', 'status', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.updateId)
+        && data.updateId == targetUpdateId
+        && data.roundNumber is number && data.roundNumber >= 1 && data.roundNumber <= 100000
+        && isValidId(data.nodeId)
+        && isValidId(data.submittedByUid)
+        && data.sampleCount is number && data.sampleCount >= 1 && data.sampleCount <= 10000000
+        && data.localEpochs is number && data.localEpochs >= 1 && data.localEpochs <= 100
+        && data.localAccuracy is number && data.localAccuracy >= 0 && data.localAccuracy <= 100
+        && data.localLoss is number && data.localLoss >= 0 && data.localLoss <= 100
+        && data.l2Norm is number && data.l2Norm >= 0 && data.l2Norm <= 1000
+        && data.epsilonDelta is number && data.epsilonDelta > 0 && data.epsilonDelta <= 50
+        && isHexString(data.gradientDigest, 8, 128)
+        && data.weightDeltas is list
+        && data.weightDeltas.size() >= 1 && data.weightDeltas.size() <= 8
+        && data.weightDeltas[0] is number
+        && data.phiScanPassed is bool && data.phiScanPassed == true
+        && data.status in ['pending', 'aggregated']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data, targetLogId) {
+      return data.keys().hasAll([
+          'logId', 'actorUid', 'actorRole', 'actionType', 'targetId',
+          'summary', 'integrityHash', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'logId', 'actorUid', 'actorRole', 'actionType', 'targetId',
+          'summary', 'integrityHash', 'createdAt'
+        ])
+        && isValidId(data.logId)
+        && data.logId == targetLogId
+        && isValidId(data.actorUid)
+        && data.actorRole in ['user', 'admin']
+        && data.actionType is string && data.actionType.size() >= 2 && data.actionType.size() <= 64
+        && isValidId(data.targetId)
+        && data.summary is string && data.summary.size() >= 2 && data.summary.size() <= 280
+        && isHexString(data.integrityHash, 8, 128)
+        && data.createdAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    // 1. Admins Registry
+    match /admins/{uid} {
+      allow get: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(uid)
+        && isAdmin()
+        && isValidAdminRegistry(incoming(), uid)
+        && incoming().grantedBy == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(uid) && isAdmin() && uid != request.auth.uid;
+    }
+
+    // 2. Users Operational Profile (Zero PII)
+    match /users/{uid} {
+      allow get: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(uid)
+        && isOwner(uid)
+        && isValidUserProfile(incoming(), uid)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && incoming().status == 'active'
+        && (incoming().role == 'user' || (incoming().role == 'admin' && isBootstrappedAdmin()));
+      allow update: if isValidId(uid)
+        && isVerified()
+        && isValidUserProfile(incoming(), uid)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            isOwner(uid)
+            && incoming().role == existing().role
+            && incoming().status == existing().status
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'hospitalNodeId', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(uid) && isAdmin();
+
+      // PII-Isolated Subcollection
+      match /private/info {
+        allow get: if isValidId(uid) && (isOwner(uid) || isAdmin());
+        allow list: if false;
+        allow create: if isValidId(uid)
+          && isOwner(uid)
+          && isValidUserPrivateInfo(incoming(), uid)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(uid)
+          && (isOwner(uid) || isAdmin())
+          && isValidUserPrivateInfo(incoming(), uid)
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+        allow delete: if isValidId(uid) && isAdmin();
+      }
+    }
+
+    // 3. Hospital Nodes (Aggregate Telemetry Only)
+    match /hospital_nodes/{nodeId} {
+      allow get: if isValidId(nodeId) && isVerified();
+      allow list: if isVerified() && resource.data.status in ['active', 'pending', 'suspended'];
+      allow create: if isValidId(nodeId)
+        && isVerified()
+        && isValidHospitalNode(incoming(), nodeId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (incoming().ownerUid == request.auth.uid && incoming().status == 'pending')
+        );
+      allow update: if isValidId(nodeId)
+        && isVerified()
+        && isValidHospitalNode(incoming(), nodeId)
+        && incoming().nodeId == existing().nodeId
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            existing().status == 'active'
+            && existing().ownerUid == request.auth.uid
+            && incoming().status == existing().status
+            && incoming().privacyBudgetCap == existing().privacyBudgetCap
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'localRecordCount', 'localAccuracy', 'privacyBudgetUsed', 'lastSyncRound', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(nodeId) && isAdmin();
+    }
+
+    // 4. Global Federated Training Rounds
+    match /training_rounds/{roundId} {
+      allow get: if isValidId(roundId) && isVerified();
+      allow list: if isVerified() && resource.data.status in ['open', 'aggregated'];
+      allow create: if isValidId(roundId)
+        && isAdmin()
+        && isValidTrainingRound(incoming(), roundId)
+        && incoming().aggregatorUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(roundId)
+        && isAdmin()
+        && isValidTrainingRound(incoming(), roundId)
+        && incoming().roundId == existing().roundId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if isValidId(roundId) && isAdmin();
+    }
+
+    // 5. Differentially Private Gradient Updates (Zero PHI)
+    match /gradient_updates/{updateId} {
+      allow get: if isValidId(updateId) && isVerified() && (
+        isAdmin() || existing().submittedByUid == request.auth.uid
+      );
+      allow list: if isVerified() && (
+        isAdmin() || resource.data.submittedByUid == request.auth.uid
+      );
+      allow create: if isValidId(updateId)
+        && isVerified()
+        && isValidGradientUpdate(incoming(), updateId)
+        && incoming().submittedByUid == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/hospital_nodes/$(incoming().nodeId))
+        && get(/databases/$(database)/documents/hospital_nodes/$(incoming().nodeId)).data.status == 'active';
+      allow update: if isValidId(updateId)
+        && isAdmin()
+        && isValidGradientUpdate(incoming(), updateId)
+        && incoming().updateId == existing().updateId
+        && incoming().submittedByUid == existing().submittedByUid
+        && incoming().nodeId == existing().nodeId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if isValidId(updateId) && isAdmin();
+    }
+
+    // 6. Immutable Audit Logs
+    match /audit_logs/{logId} {
+      allow get: if isValidId(logId) && isVerified() && (
+        isAdmin() || existing().actorUid == request.auth.uid
+      );
+      allow list: if isVerified() && (
+        isAdmin() || resource.data.actorUid == request.auth.uid
+      );
+      allow create: if isValidId(logId)
+        && isVerified()
+        && isValidAuditLog(incoming(), logId)
+        && incoming().actorUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && (
+          (incoming().actorRole == 'admin' && isAdmin()) ||
+          (incoming().actorRole == 'user')
+        );
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
